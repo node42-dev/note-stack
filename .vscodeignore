@@ -1,0 +1,13 @@
+.vscode/**
+src/**
+media/**
+scripts/**
+dist/*.vsix
+node_modules/**
+tsconfig.json
+webpack.config.js
+*.map
+*.bak/**
+*.old/**
+*.bak
+*.old

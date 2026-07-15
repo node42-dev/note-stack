@@ -1,0 +1,454 @@
+{
+	"name": "note-stack",
+	"displayName": "NoteStack",
+	"description": "Persistent, drift-aware, prioritized code annotations — attach notes to any line or selection, across all projects, without touching your source files.",
+	"keywords": [
+		"notes",
+		"annotations",
+		"bookmarks",
+		"todo",
+		"comments",
+		"productivity",
+		"code review",
+		"reminders",
+		"sticky notes",
+		"workspace"
+	],
+	"publisher": "Node42",
+	"author": {
+		"name": "Alex Olsson",
+		"url": "https://node42.dev"
+	},
+	"homepage": "https://github.com/node42-dev/note-stack",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/node42-dev/note-stack"
+	},
+	"license": "MIT",
+	"version": "1.2.97",
+	"icon": "./resources/icon.png",
+	"engines": {
+		"vscode": "^1.74.0"
+	},
+	"categories": [
+		"Other",
+		"Notebooks",
+		"Visualization"
+	],
+	"galleryBanner": {
+		"color": "#0F1117",
+		"theme": "dark"
+	},
+	"activationEvents": [],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"configuration": {
+			"title": "NoteStack",
+			"properties": {
+				"noteStack.storageLocation": {
+					"type": "string",
+					"default": "",
+					"description": "Custom directory for note-stack-<appId>.json. Leave empty to use VS Code's default global storage. Set to a Dropbox/iCloud/GDrive folder for cloud sync."
+				},
+				"noteStack.showSharedNotes": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show notes created on other machines. When disabled, only notes from this machine are shown."
+				},
+				"noteStack.noteCountThreshold": {
+					"type": "number",
+					"default": 300,
+					"description": "Number of notes at which a performance warning is shown in the browser panel."
+				},
+				"noteStack.browserInlineCodePreview": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show a code snippet preview when hovering over a note card in the Notes Browser panel."
+				},
+				"noteStack.browserInlineCodePreviewContextLines": {
+					"type": "number",
+					"default": 4,
+					"description": "Number of context lines shown above and below the annotated line in the browser panel code preview."
+				},
+				"noteStack.slackTeamId": {
+					"type": "string",
+					"default": "",
+					"description": "Slack workspace/team ID (e.g. T01EYMQ3B). Found in your Slack web URL: app.slack.com/client/<TEAM_ID>/.... Required for @mentions to deep-link to Slack."
+				},
+				"noteStack.codeTagBlameDrift": {
+					"type": "boolean",
+					"default": false,
+					"description": "Compare each code tag's date against the git blame date for that line. The drift (in days) is shown in the tag tooltip. Disabled by default — enabling it runs 'git blame' for each tagged line during workspace scan."
+				},
+				"noteStack.codeTagKeywords": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"ISSUE",
+						"TODO",
+						"FIXME",
+						"FIX",
+						"HACK",
+						"IDEA",
+						"PORT",
+						"BUG",
+						"DEPRECATED",
+						"REFACTOR",
+						"NOTE",
+						"REFERENCE",
+						"OPTIMIZE",
+						"REVIEW",
+						"XXX"
+					],
+					"description": "Keywords scanned for in comments and added to the Code Tags tree. Case-insensitive. Changes take effect on the next workspace scan."
+				},
+				"noteStack.ticketTrackers": {
+					"type": "array",
+					"default": [],
+					"description": "Ticket tracker configurations for auto-linking ticket IDs in note text.",
+					"items": {
+						"type": "object",
+						"properties": {
+							"prefixes": {
+								"type": "array",
+								"items": {
+									"type": "string"
+								},
+								"description": "Ticket key prefixes e.g. [\"QD\", \"PAPI\"]"
+							},
+							"system": {
+								"type": "string",
+								"enum": [
+									"jira",
+									"linear",
+									"github",
+									"custom"
+								],
+								"description": "Tracker type"
+							},
+							"baseUrl": {
+								"type": "string",
+								"description": "Base URL. Jira: https://co.atlassian.net  Linear: https://linear.app/workspace  GitHub: https://github.com/org/repo  Custom: https://tracker.io/issues/{key}"
+							}
+						}
+					}
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "noteStack.addNote",
+				"title": "Add Note",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.showNotes",
+				"title": "Show Notes in Current File",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.showAllNotes",
+				"title": "Show All Notes in Workspace",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.removeNote",
+				"title": "Remove Note at Line",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.moveNote",
+				"title": "Move Note",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.placeNote",
+				"title": "Place Note Here",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.clearAllNotes",
+				"title": "Clear All Notes in Workspace",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.openRefUrl",
+				"title": "Open Reference URL",
+				"category": "NoteStack",
+				"icon": "$(link-external)"
+			},
+			{
+				"command": "noteStack.openBrowser",
+				"title": "Open Notes Browser",
+				"category": "NoteStack",
+				"icon": "$(note)"
+			},
+			{
+				"command": "noteStack.openCodeTagBrowser",
+				"title": "Open CodeTags Browser",
+				"category": "NoteStack",
+				"icon": "$(tag)"
+			},
+			{
+				"command": "noteStack.exportMarkdown",
+				"title": "Export All Notes to Markdown",
+				"category": "NoteStack",
+				"icon": "$(markdown)"
+			},
+			{
+				"command": "noteStack.exportNotes",
+				"title": "Export Notes to File",
+				"category": "NoteStack",
+				"icon": "$(archive)"
+			},
+			{
+				"command": "noteStack.importNotes",
+				"title": "Import Notes from File",
+				"category": "NoteStack",
+				"icon": "$(inbox)"
+			},
+			{
+				"command": "noteStack.forceRefresh",
+				"title": "Force Refresh",
+				"category": "NoteStack",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "noteStack.collapseAll",
+				"title": "Collapse All",
+				"category": "NoteStack",
+				"icon": "$(collapse-all)"
+			},
+			{
+				"command": "noteStack.openCodeTag",
+				"title": "Open Code Tag",
+				"category": "NoteStack"
+			},
+			{
+				"command": "noteStack.sendNoteToAi",
+				"title": "Send Note to AI",
+				"category": "NoteStack",
+				"icon": "$(sparkle)"
+			},
+			{
+				"command": "noteStack.sendCodeTagToAi",
+				"title": "Send Code Tag to AI",
+				"category": "NoteStack",
+				"icon": "$(sparkle)"
+			},
+			{
+				"command": "noteStack.editNote",
+				"title": "Edit Note",
+				"category": "NoteStack",
+				"icon": "$(edit)"
+			},
+			{
+				"command": "noteStack.deleteNote",
+				"title": "Remove Note",
+				"category": "NoteStack",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "noteStack.openBrowserFromToolbar",
+				"title": "NoteStack: Open Notes Browser",
+				"category": "NoteStack",
+				"icon": "./resources/icon.svg"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "noteStack.addNote",
+				"key": "ctrl+shift+n",
+				"mac": "cmd+shift+n",
+				"when": "editorTextFocus"
+			},
+			{
+				"command": "noteStack.removeNote",
+				"key": "ctrl+shift+d",
+				"mac": "cmd+shift+d",
+				"when": "editorTextFocus && noteStack.hasNoteAtLine"
+			},
+			{
+				"command": "noteStack.showAllNotes",
+				"key": "ctrl+shift+alt+n",
+				"mac": "cmd+shift+alt+n"
+			},
+			{
+				"command": "noteStack.openBrowser",
+				"key": "ctrl+shift+alt+b",
+				"mac": "cmd+shift+alt+b"
+			}
+		],
+		"menus": {
+			"editor/title": [
+				{
+					"command": "noteStack.openBrowserFromToolbar",
+					"when": "editorFocus",
+					"group": "navigation"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "noteStack.addNote",
+					"when": "!noteStack.hasNoteAtLine",
+					"group": "noteStack"
+				},
+				{
+					"command": "noteStack.removeNote",
+					"when": "noteStack.hasNoteAtLine",
+					"group": "noteStack"
+				},
+				{
+					"command": "noteStack.moveNote",
+					"when": "noteStack.hasNoteAtLine && !noteStack.noteInFlight",
+					"group": "noteStack"
+				},
+				{
+					"command": "noteStack.placeNote",
+					"when": "noteStack.noteInFlight",
+					"group": "noteStack"
+				}
+			],
+			"view/title": [
+				{
+					"command": "noteStack.openCodeTagBrowser",
+					"when": "view == noteStack",
+					"group": "navigation@1"
+				},
+				{
+					"command": "noteStack.openBrowser",
+					"when": "view == noteStack",
+					"group": "navigation@2"
+				},
+				{
+					"command": "noteStack.importNotes",
+					"when": "view == noteStack",
+					"group": "navigation@3"
+				},
+				{
+					"command": "noteStack.exportNotes",
+					"when": "view == noteStack",
+					"group": "navigation@4"
+				},
+				{
+					"command": "noteStack.exportMarkdown",
+					"when": "view == noteStack",
+					"group": "navigation@5"
+				},
+				{
+					"command": "noteStack.forceRefresh",
+					"when": "view == noteStack",
+					"group": "navigation@6"
+				},
+				{
+					"command": "noteStack.collapseAll",
+					"when": "view == noteStack",
+					"group": "navigation@7"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "noteStack.sendNoteToAi",
+					"when": "view === noteStack && (viewItem == note || viewItem == noteWithUrl) && noteStack.browserBridgeInstalled",
+					"group": "inline@1"
+				},
+				{
+					"command": "noteStack.sendCodeTagToAi",
+					"when": "view === noteStack && viewItem == codeTag && noteStack.browserBridgeInstalled",
+					"group": "inline@1"
+				},
+				{
+					"command": "noteStack.editNote",
+					"when": "view === noteStack && (viewItem == note || viewItem == noteWithUrl)",
+					"group": "inline@2"
+				},
+				{
+					"command": "noteStack.openRefUrl",
+					"when": "view === noteStack && viewItem == noteWithUrl",
+					"group": "inline@3"
+				},
+				{
+					"command": "noteStack.deleteNote",
+					"when": "view === noteStack && (viewItem == note || viewItem == noteWithUrl)",
+					"group": "inline@4"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "noteStack.addNote"
+				},
+				{
+					"command": "noteStack.sendNoteToAi",
+					"when": "noteStack.browserBridgeInstalled"
+				},
+				{
+					"command": "noteStack.sendCodeTagToAi",
+					"when": "noteStack.browserBridgeInstalled"
+				},
+				{
+					"command": "noteStack.showNotes"
+				},
+				{
+					"command": "noteStack.showAllNotes"
+				},
+				{
+					"command": "noteStack.removeNote"
+				},
+				{
+					"command": "noteStack.clearAllNotes"
+				},
+				{
+					"command": "noteStack.openBrowser"
+				},
+				{
+					"command": "noteStack.openCodeTagBrowser"
+				},
+				{
+					"command": "noteStack.exportMarkdown"
+				},
+				{
+					"command": "noteStack.forceRefresh"
+				},
+				{
+					"command": "noteStack.collapseAll"
+				}
+			]
+		},
+		"views": {
+			"explorer": [
+				{
+					"id": "noteStack",
+					"name": "NoteStack",
+					"when": "workspaceFolderCount > 0",
+					"icon": "./resources/icon.svg"
+				}
+			]
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run package",
+		"compile": "webpack",
+		"watch": "webpack --watch",
+		"package": "webpack --mode production --devtool hidden-source-map",
+		"compile-tests": "tsc -p . --outDir out",
+		"watch-tests": "tsc -p . -w --outDir out",
+		"pretest": "npm run compile-tests && npm run compile && npm run lint",
+		"lint": "eslint src --ext ts",
+		"test": "node ./out/test/runTest.js"
+	},
+	"dependencies": {
+		"ignore": "^7.0.6"
+	},
+	"devDependencies": {
+		"@bb/provider": "file:../../browser-bridge/packages/provider",
+		"@types/node": "^16.18.126",
+		"@types/vscode": "^1.74.0",
+		"copy-webpack-plugin": "^14.0.0",
+		"ts-loader": "^9.5.7",
+		"typescript": "^4.9.5",
+		"webpack": "^5.106.2",
+		"webpack-cli": "^6.0.1"
+	}
+}
