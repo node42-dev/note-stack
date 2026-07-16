@@ -21,6 +21,7 @@ import { APP_ID, HOST_NAME, MACHINE_ID, PRIORITY_LABEL } from "./constants";
 import { INotesBrowserManager, NotesBrowserPanel } from "./NotesBrowserPanel";
 import { openNoteEditor } from "./NotesEditorPanel";
 import { NotesTreeDataProvider } from "./NotesTreeProvider";
+import { zipProjectRoot } from "./projectZipper";
 import {
   CodeTagEntry,
   CodeTagStats,
@@ -123,8 +124,27 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     this.loadNotes();
     this.setupEventListeners();
     this.updateBrowserBridgeContext();
+    this.updateWorkspaceRootContext();
+    this.context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() =>
+        this.updateWorkspaceRootContext(),
+      ),
+    );
 
     this.log("Initialized");
+  }
+
+  // ── Explorer root detection ──────────────────────────────────────────────────
+
+  private updateWorkspaceRootContext(): void {
+    const basenames = (vscode.workspace.workspaceFolders ?? []).map((f) =>
+      path.basename(f.uri.fsPath),
+    );
+    vscode.commands.executeCommand(
+      "setContext",
+      "noteStack.workspaceRootBasenames",
+      basenames,
+    );
   }
 
   // ── Browser Bridge availability ─────────────────────────────────────────────
@@ -827,15 +847,19 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
       return;
     }
 
-    const items = fileNotes.map((n) => ({
-      label: `${priorityBadge(n.priority) || "📝"} Line ${n.line + 1}, Col ${n.character + 1}`,
-      description: n.note.split("\n")[0],
-      detail: `Created: ${n.timestamp}${n.priority ? `  [${n.priority}]` : ""}${n.note.includes("\n") ? "  [multiline]" : ""}`,
-      note: n,
-    }));
+    const items = [...fileNotes]
+      .sort((a, b) => a.line - b.line || a.character - b.character)
+      .map((n) => ({
+        label: `${priorityBadge(n.priority) || "📝"} Line ${n.line + 1}, Col ${n.character + 1}`,
+        description: n.note.split("\n")[0],
+        detail: `Created: ${n.timestamp}${n.priority ? `  [${n.priority}]` : ""}${n.note.includes("\n") ? "  [multiline]" : ""}`,
+        note: n,
+      }));
 
     const picked = await vscode.window.showQuickPick(items, {
       placeHolder: "Select a note to navigate to",
+      matchOnDescription: true,
+      matchOnDetail: true,
     });
     if (picked) {
       const p = new vscode.Position(picked.note.line, picked.note.character);
@@ -845,11 +869,23 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
   }
 
   async showAllNotes(): Promise<void> {
-    type AllNoteItem = vscode.QuickPickItem & {
+    const picked = await this.pickNote();
+    if (picked) await this.openNote(picked);
+  }
+
+  /**
+   * Lets the user search/select a note across the whole workspace via QuickPick.
+   * Used as a fallback for commands (editNote, deleteNote, showAllNotes) invoked
+   * without a tree item, e.g. from the Command Palette or a keybinding.
+   */
+  private async pickNote(
+    placeHolder?: string,
+  ): Promise<{ filePath: string; fileName: string; note: NoteEntry } | undefined> {
+    type NoteItem = vscode.QuickPickItem & {
       filePath: string;
       note: NoteEntry;
     };
-    const items: AllNoteItem[] = [];
+    const items: NoteItem[] = [];
 
     for (const [filePath, notes] of Object.entries(this.notes)) {
       if (!notes?.length) continue;
@@ -866,7 +902,7 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
 
     if (items.length === 0) {
       vscode.window.showInformationMessage("No notes in workspace");
-      return;
+      return undefined;
     }
 
     items.sort((a, b) => {
@@ -878,16 +914,17 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     });
 
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: `${items.length} notes in workspace`,
+      placeHolder: placeHolder ?? `${items.length} notes in workspace`,
       matchOnDescription: true,
       matchOnDetail: true,
     });
-    if (picked)
-      await this.openNote({
-        filePath: picked.filePath,
-        fileName: path.basename(picked.filePath),
-        note: picked.note,
-      });
+    if (!picked) return undefined;
+
+    return {
+      filePath: picked.filePath,
+      fileName: path.basename(picked.filePath),
+      note: picked.note,
+    };
   }
 
   async openNote(item: {
@@ -1124,11 +1161,50 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     }
   }
 
-  async editNote(item: {
+  async zipProject(uri?: vscode.Uri): Promise<void> {
+    const folder = uri
+      ? vscode.workspace.getWorkspaceFolder(uri)
+      : vscode.workspace.workspaceFolders?.[0];
+    if (!folder) {
+      vscode.window.showWarningMessage("No workspace folder found.");
+      return;
+    }
+
+    try {
+      const maxMb = vscode.workspace
+        .getConfiguration("noteStack")
+        .get<number>("maxAiZipSizeMb", 30);
+
+      const zipPath = await zipProjectRoot(
+        folder.uri.fsPath,
+        maxMb * 1024 * 1024,
+      );
+
+      this.log(`Zipped project root to ${zipPath}`);
+
+      const action = await vscode.window.showInformationMessage(
+        `Project zipped to ${zipPath}`,
+        "Open Folder",
+      );
+      if (action === "Open Folder") {
+        await vscode.commands.executeCommand(
+          "revealFileInOS",
+          vscode.Uri.file(zipPath),
+        );
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to zip project: ${String(error)}`);
+    }
+  }
+
+  async editNote(itemArg?: {
     filePath: string;
     fileName: string;
     note: NoteEntry;
   }): Promise<void> {
+    const item = itemArg ?? (await this.pickNote("Select a note to edit"));
+    if (!item) return;
+
     const locationLabel = `${item.fileName} · Line ${item.note.line + 1}, Col ${item.note.character + 1}`;
 
     const result = await openNoteEditor(
@@ -1308,7 +1384,7 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
 
     const newAnchor = editor.document.lineAt(newLine).text.trim();
     const store = this.readMyGlobalStore();
-    let found = false;
+    let updatedNote: NoteEntry | undefined;
 
     for (const wsStore of Object.values(store)) {
       for (const notes of Object.values(wsStore)) {
@@ -1335,16 +1411,16 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
             };
           }
 
-          found = true;
+          updatedNote = n;
           break;
         }
       }
-      if (found) {
+      if (updatedNote) {
         break;
       }
     }
 
-    if (!found) {
+    if (!updatedNote) {
       vscode.window.showWarningMessage(
         "NoteStack: Note not found for re-anchor",
       );
@@ -1357,6 +1433,16 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     // Only sync this.notes if the note belonged to current workspace
     const wsKey = this.getWorkspaceKey();
     if (store[wsKey]) this.notes = store[wsKey];
+
+    // openNote() injects a transient copy of cross-workspace notes into
+    // this.notes (keyed by absolute path) so decorations render without
+    // switching workspace. That copy is a different object than the one
+    // just mutated above, so patch it in place too — otherwise the hover
+    // keeps showing the note as drifted until the window reloads.
+    for (const notes of Object.values(this.notes)) {
+      const idx = notes.findIndex((n) => n.id === noteId);
+      if (idx !== -1) notes[idx] = { ...notes[idx], ...updatedNote };
+    }
 
     this.log(`Re-anchored ${noteId} → line ${newLine + 1}: ${newAnchor}`);
 
@@ -1442,11 +1528,14 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     );
   }
 
-  async deleteNote(item: {
+  async deleteNote(itemArg?: {
     filePath: string;
     fileName: string;
     note: NoteEntry;
   }): Promise<void> {
+    const item = itemArg ?? (await this.pickNote("Select a note to delete"));
+    if (!item) return;
+
     const answer = await vscode.window.showWarningMessage(
       `Delete note on line ${item.note.line + 1} of ${item.fileName}?`,
       { modal: true },

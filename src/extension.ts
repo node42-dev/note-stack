@@ -47,6 +47,9 @@ export async function activate(
     vscode.commands.registerCommand("noteStack.sendCodeTagToAi", (item) =>
       manager.sendCodeTagToAi(item),
     ),
+    vscode.commands.registerCommand("noteStack.zipProject", (uri) =>
+      manager.zipProject(uri),
+    ),
     /**
       ISSUE: Right-click context menu toggle between Add/Remove Note is laggy —
       caused by setContext async latency when evaluating noteStack.hasNoteAtLine.

@@ -25,7 +25,7 @@
 		"url": "https://github.com/node42-dev/note-stack"
 	},
 	"license": "MIT",
-	"version": "1.2.97",
+	"version": "1.3.11",
 	"icon": "./resources/icon.png",
 	"engines": {
 		"vscode": "^1.74.0"
@@ -74,6 +74,11 @@
 					"type": "string",
 					"default": "",
 					"description": "Slack workspace/team ID (e.g. T01EYMQ3B). Found in your Slack web URL: app.slack.com/client/<TEAM_ID>/.... Required for @mentions to deep-link to Slack."
+				},
+				"noteStack.maxAiZipSizeMb": {
+					"type": "number",
+					"default": 30,
+					"description": "Maximum size (in MB) for the zip produced by 'Zip Project'. Matches Claude.ai's 30MB chat upload cap by default — the zip is deleted and an error is shown if it comes out larger."
 				},
 				"noteStack.codeTagBlameDrift": {
 					"type": "boolean",
@@ -255,6 +260,12 @@
 				"title": "NoteStack: Open Notes Browser",
 				"category": "NoteStack",
 				"icon": "./resources/icon.svg"
+			},
+			{
+				"command": "noteStack.zipProject",
+				"title": "Zip Project",
+				"category": "NoteStack",
+				"icon": "$(archive)"
 			}
 		],
 		"keybindings": [
@@ -285,8 +296,15 @@
 			"editor/title": [
 				{
 					"command": "noteStack.openBrowserFromToolbar",
-					"when": "editorFocus",
+					"when": "resourceScheme == file",
 					"group": "navigation"
+				}
+			],
+			"explorer/context": [
+				{
+					"command": "noteStack.zipProject",
+					"when": "explorerResourceIsFolder && resourceFilename in noteStack.workspaceRootBasenames",
+					"group": "noteStack"
 				}
 			],
 			"editor/context": [
@@ -445,6 +463,7 @@
 		"@bb/provider": "file:../../browser-bridge/packages/provider",
 		"@types/node": "^16.18.126",
 		"@types/vscode": "^1.74.0",
+		"@vscode/codicons": "^0.0.45",
 		"copy-webpack-plugin": "^14.0.0",
 		"ts-loader": "^9.5.7",
 		"typescript": "^4.9.5",
