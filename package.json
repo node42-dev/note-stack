@@ -460,7 +460,6 @@
 		"ignore": "^7.0.6"
 	},
 	"devDependencies": {
-		"@bb/provider": "file:../../browser-bridge/packages/provider",
 		"@types/node": "^16.18.126",
 		"@types/vscode": "^1.74.0",
 		"@vscode/codicons": "^0.0.45",

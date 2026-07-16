@@ -6,7 +6,7 @@
   SPDX-License-Identifier: MIT
 */
 
-import type { BrowserBridgeProvider, RequestContext } from "@bb/provider";
+import type { BrowserBridgeProvider, RequestContext } from "./bridgeTypes";
 import * as vscode from "vscode";
 import { CodeTagEntry, NoteEntry } from "./types";
 import { generateUUID } from "./utils";
