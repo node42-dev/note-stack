@@ -150,6 +150,7 @@ const KW_CODICON: Record<string, string> = {
   WWW:        'globe',
   PORT:       'plug',
   XXX:        'chrome-close',
+  CODETAG:    'tag',
 };
 
 function fileMtimeDate(filePath: string): string | undefined {

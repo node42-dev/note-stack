@@ -12,7 +12,7 @@ import * as vscode from "vscode";
 import ignore, { Ignore } from "ignore";
 
 import { CodeTagEntry, CodeTagsStore, CodeTagStats } from "./types";
-import { getGitBlameDateForLine, getKeywordRe, isInsideString, updateWorkspaceStats } from "./utils";
+import { getGitBlameDateForLine, getKeywordRe, isAtCommentStart, isInsideString, updateWorkspaceStats } from "./utils";
 
 // <identifier YYYY-MM-DD p:N>
 const CODETAG_RE = /<([A-Za-z0-9_]+)\s+(\d{4}-\d{2}-\d{2})\s+p:([0-3])>/;
@@ -115,6 +115,12 @@ export class CodeTagScanner implements vscode.Disposable {
 
         // Skip keyword if it's inside a string literal
         if (kwMatch && isInsideString(lineText, kwMatch.index)) {
+          kwMatch = null;
+        }
+
+        // Skip keyword if it's mid-sentence rather than at the start of the
+        // comment (e.g. "// levels are ERROR / WARN / INFO" shouldn't tag).
+        if (kwMatch && !isAtCommentStart(lineText, kwMatch.index)) {
           kwMatch = null;
         }
 

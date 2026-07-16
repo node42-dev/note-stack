@@ -377,3 +377,23 @@ export function isInsideString(line: string, position: number): boolean {
 
   return inSingle || inDouble || inBacktick;
 }
+
+// Matches the comment opener (plus any block-comment continuation "*") and the
+// whitespace right after it, so callers can tell where the comment's actual
+// content begins on a line.
+const COMMENT_PREFIX_RE = /^\s*(\/\*\*?|\/\/|#|<!--|\*)\s*/;
+
+/**
+ * Checks whether a matched keyword sits at the very start of the comment's
+ * content (right after the comment marker, e.g. "// TODO:"), rather than
+ * appearing mid-sentence (e.g. "// levels are ERROR / WARN / INFO"). Only
+ * leading tags are treated as real code-tag keywords.
+ */
+export function isAtCommentStart(line: string, index: number): boolean {
+  const prefixMatch = COMMENT_PREFIX_RE.exec(line);
+  const contentStart = prefixMatch
+    ? prefixMatch[0].length
+    : line.length - line.trimStart().length;
+
+  return index === contentStart;
+}
