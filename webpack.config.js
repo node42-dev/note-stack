@@ -31,7 +31,10 @@ const config = {
   },
   plugins: [
     new CopyWebpackPlugin({
-      patterns: [{ from: 'media', to: 'media' }],
+      patterns: [
+        { from: 'media', to: 'media' },
+        { from: 'node_modules/@vscode/codicons/dist', to: 'codicons' },
+      ],
     }),
   ],
   devtool: 'nosources-source-map',
