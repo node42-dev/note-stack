@@ -21,6 +21,7 @@
   const _state = vscode.getState() || {};
   let activePriority = _state.priority || "all";
   let searchTerm = _state.search || "";
+  let localOnly = _state.localOnly || false;
 
   if (searchTerm) {
     document.getElementById("searchInput").value = searchTerm;
@@ -31,12 +32,16 @@
   if (_state.sort) {
     document.getElementById("sortSelect").value = _state.sort;
   }
+  if (localOnly) {
+    document.getElementById("localOnlyToggle").classList.add("active");
+  }
 
   function saveState() {
     vscode.setState({
       priority: activePriority,
       search: searchTerm,
       sort: document.getElementById("sortSelect").value,
+      localOnly,
     });
   }
 
@@ -54,6 +59,13 @@
       const note = JSON.parse(btn.getAttribute("data-note"));
       vscode.postMessage({ type: "editNote", filePath, note });
     });
+  });
+
+  document.getElementById("localOnlyToggle").addEventListener("click", (e) => {
+    localOnly = !localOnly;
+    e.target.classList.toggle("active", localOnly);
+    saveState();
+    applyFilters();
   });
 
   document.querySelectorAll(".meta-workspace").forEach((el) => {
@@ -208,7 +220,8 @@
             (t) => t.getAttribute("data-tag") === tag,
           ),
         );
-      if (priorityMatch && searchMatch && tagMatch) {
+      const localMatch = !localOnly || card.getAttribute("data-local") === "true";
+      if (priorityMatch && searchMatch && tagMatch && localMatch) {
         card.classList.remove("hidden");
         visible++;
       } else {

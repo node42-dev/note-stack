@@ -175,7 +175,7 @@ export class NotesBrowserPanel {
     const cspSource = this.panel.webview.cspSource;
 
     this.panel.webview.html = buildBrowserHtml(
-      wsName, allNotes, this.noteCountThreshold, this.noteRenderer,
+      wsName, wsRoot, allNotes, this.noteCountThreshold, this.noteRenderer,
       cssUri.toString(), scriptUri.toString(), cspSource
     );
   }
@@ -193,11 +193,13 @@ type FlatNote = {
   fileName: string;
   wsLabel:  string;
   wsRoot:   string;
+  isLocal:  boolean;
   note:     NoteEntry;
 };
 
 export function buildBrowserHtml(
   workspaceName: string,
+  workspaceRoot: string,
   notes: NotesStore,
   noteCountThreshold: number,
   noteRenderer: NoteRenderer | undefined,
@@ -220,15 +222,20 @@ export function buildBrowserHtml(
       ? path.join(wsRootFs, filePath)
       : filePath;
 
+    // Compare actual workspace roots, not display names — two different
+    // projects can share a folder basename (e.g. two "backend" checkouts).
+    const isLocal = !!workspaceRoot && !!wsRootFs
+      && path.normalize(wsRootFs) === path.normalize(workspaceRoot);
+
     for (const note of fileNotes) {
-      flat.push({ filePath: absFilePath, fileName: path.basename(absFilePath), note, wsLabel, wsRoot: wsRootFs });
+      flat.push({ filePath: absFilePath, fileName: path.basename(absFilePath), note, wsLabel, wsRoot: wsRootFs, isLocal });
     }
   }
 
   flat.sort((a, b) => {
     // 1. Current workspace first
-    const aLocal = a.wsLabel === workspaceName ? 0 : 1;
-    const bLocal = b.wsLabel === workspaceName ? 0 : 1;
+    const aLocal = a.isLocal ? 0 : 1;
+    const bLocal = b.isLocal ? 0 : 1;
     if (aLocal !== bLocal) return aLocal - bLocal;
 
     // 2. Priority
@@ -248,7 +255,7 @@ export function buildBrowserHtml(
   const overLimit = noteCount > noteCountThreshold;
   const fileCount = Object.keys(notes).filter(k => notes[k]?.length > 0).length;
 
-  const rows = flat.map(({ filePath, fileName, note, wsLabel, wsRoot: itemWsRoot }, idx) => {
+  const rows = flat.map(({ filePath, fileName, note, wsLabel, wsRoot: itemWsRoot, isLocal }, idx) => {
     const wsRootJson    = (itemWsRoot ?? '').replace(/"/g, '&quot;');
     const priorityClass = note.priority ?? 'none';
     const firstLine     = escapeHtml(note.note.split('\n')[0]);
@@ -277,7 +284,7 @@ export function buildBrowserHtml(
         data-priority="${priorityClass}" 
         data-ts="${new Date(note.timestamp).getTime()}"
         data-line="${note.line}"
-        data-local="${wsLabel === workspaceName}"
+        data-local="${isLocal}"
         data-file="${escapeHtml(filePath)}">
       <div class="note-header">
         <div class="note-title-row">
@@ -324,6 +331,7 @@ export function buildBrowserHtml(
     <span class="header-stats" id="statsLabel">${noteCount} note${noteCount !== 1 ? 's' : ''} · ${fileCount} file${fileCount !== 1 ? 's' : ''} · ${APP_ID} · ${HOST_NAME}</span>
   </div>
   <div class="filter-bar">
+    <button id="localOnlyToggle" class="local-filter-btn" title="Hide notes from other workspaces">📍</button>
     <div class="search-wrap">
       <input type="text" id="searchInput" placeholder="Search notes…" autocomplete="off" spellcheck="false">
     </div>

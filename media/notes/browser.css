@@ -134,6 +134,25 @@ body {
   color: var(--btn-fg);
   border-color: transparent;
 }
+.local-filter-btn {
+  padding: 6px 4px 6px 4px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 0.82em;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.local-filter-btn:hover,
+.local-filter-btn.active {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border-color: transparent;
+}
 .select-elm {
   background: var(--bg);
   color: var(--input-fg);
