@@ -229,6 +229,12 @@
       }
     });
 
+    const noResultsState = document.getElementById("noResultsState");
+    if (noResultsState) {
+      noResultsState.style.display =
+        visible === 0 && cards.length > 0 ? "flex" : "none";
+    }
+
     const visibleCards = [
       ...document.querySelectorAll(".note-card:not(.hidden)"),
     ];

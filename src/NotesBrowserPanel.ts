@@ -353,6 +353,11 @@ export function buildBrowserHtml(
 <div class="notes-list" id="notesList">
   ${overLimit ? `<div class="limit-warning">&#x26A0;&#xFE0F; ${noteCount} notes — consider archiving old ones for best performance</div>` : ''}
   ${emptyState}
+  <div class="empty-state" id="noResultsState" style="display:none;">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">No matching notes</div>
+    <div class="empty-subtitle">Try adjusting your search or filters</div>
+  </div>
   ${rows}
 </div>
 <script src="${scriptUri}"></script>

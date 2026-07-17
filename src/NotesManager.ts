@@ -117,7 +117,10 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     });
 
     this.codeTagScanner = new CodeTagScanner();
-    this.codeTagScanner.onDidChange(() => this.treeDataProvider.refresh());
+    this.codeTagScanner.onDidChange(() => {
+      this.treeDataProvider.refresh();
+      this.codeTagBrowserPanel?.update(this);
+    });
     this.codeTagScanner.setupWatcher();
     this.codeTagScanner.scanWorkspace();
 
