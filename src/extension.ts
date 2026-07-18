@@ -103,6 +103,9 @@ export async function activate(
     vscode.commands.registerCommand("noteStack.openCodeTagBrowser", () =>
       manager.openCodeTagBrowser(context),
     ),
+    vscode.commands.registerCommand("noteStack.openDocsBrowser", () =>
+      manager.openDocsBrowser(context),
+    ),
 
     vscode.commands.registerCommand("noteStack.forceRefresh", () => {
       const editor = vscode.window.activeTextEditor;
@@ -110,6 +113,7 @@ export async function activate(
         manager.updateDecorations(editor);
       }
       manager.rescanCodeTags();
+      manager.rescanDocs();
     }),
 
     vscode.commands.registerCommand("noteStack.collapseAll", () => {
@@ -118,6 +122,9 @@ export async function activate(
 
     vscode.commands.registerCommand("noteStack.openCodeTag", (entry) =>
       manager.openCodeTag(entry),
+    ),
+    vscode.commands.registerCommand("noteStack.openDoc", (entry) =>
+      manager.openDoc(entry),
     ),
   );
 

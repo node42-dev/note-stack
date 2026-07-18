@@ -18,6 +18,8 @@ import {
 import { CodeTagsBrowserPanel, ICodeTagsBrowserManager } from "./CodeTagsBrowserPanel";
 import { CodeTagScanner } from "./CodeTagScanner";
 import { APP_ID, HOST_NAME, MACHINE_ID, PRIORITY_LABEL } from "./constants";
+import { DocsBrowserPanel, IDocsBrowserManager } from "./DocsBrowserPanel";
+import { DocsScanner } from "./DocsScanner";
 import { INotesBrowserManager, NotesBrowserPanel } from "./NotesBrowserPanel";
 import { openNoteEditor } from "./NotesEditorPanel";
 import { NotesTreeDataProvider } from "./NotesTreeProvider";
@@ -26,6 +28,8 @@ import {
   CodeTagEntry,
   CodeTagStats,
   CodeTagsStore,
+  DocEntry,
+  DocsStore,
   GlobalNotesStore,
   NoteEntry,
   NotesStore,
@@ -45,7 +49,7 @@ import {
   updateWorkspaceStats
 } from "./utils";
 
-export class NotesManager implements vscode.Disposable, INotesBrowserManager, ICodeTagsBrowserManager {
+export class NotesManager implements vscode.Disposable, INotesBrowserManager, ICodeTagsBrowserManager, IDocsBrowserManager {
   private notes: NotesStore = {};
   private notesFilePath!: string;
   private globalNotesFilePath!: string;
@@ -60,6 +64,8 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
   private noteInFlight?: { filePath: string; note: NoteEntry };
   private noteCountThreshold!: number;
   private codeTagScanner!: CodeTagScanner;
+  private docsScanner!: DocsScanner;
+  private docsBrowserPanel?: DocsBrowserPanel;
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.initialize();
@@ -111,6 +117,7 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     this.treeDataProvider = new NotesTreeDataProvider(
       () => this.notes,
       () => this.codeTagScanner.getStore(),
+      () => this.docsScanner.getStore(),
     );
     vscode.window.createTreeView("noteStack", {
       treeDataProvider: this.treeDataProvider,
@@ -123,6 +130,14 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     });
     this.codeTagScanner.setupWatcher();
     this.codeTagScanner.scanWorkspace();
+
+    this.docsScanner = new DocsScanner();
+    this.docsScanner.onDidChange(() => {
+      this.treeDataProvider.refresh();
+      this.docsBrowserPanel?.update(this);
+    });
+    this.docsScanner.setupWatcher();
+    this.docsScanner.scanWorkspace();
 
     this.loadNotes();
     this.setupEventListeners();
@@ -1626,6 +1641,10 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     return this.codeTagScanner.getStore();
   }
 
+  getDocsStore(): DocsStore {
+    return this.docsScanner.getStore();
+  }
+
   openRefUrl(item: {
     filePath: string;
     fileName: string;
@@ -1640,6 +1659,10 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
 
   openCodeTagBrowser(context: vscode.ExtensionContext): void {
     this.codeTagBrowserPanel = CodeTagsBrowserPanel.createOrShow(context, this);
+  }
+
+  openDocsBrowser(context: vscode.ExtensionContext): void {
+    this.docsBrowserPanel = DocsBrowserPanel.createOrShow(context, this);
   }
 
   // ── Import / Export ────────────────────────────────────────────────────────────────
@@ -1817,6 +1840,10 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     this.codeTagScanner.scanWorkspace();
   }
 
+  rescanDocs(): void {
+    this.docsScanner.scanWorkspace();
+  }
+
   async openCodeTag(entry: CodeTagEntry): Promise<void> {
     try {
       const doc = await vscode.workspace.openTextDocument(entry.filePath);
@@ -1838,6 +1865,22 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     }
   }
 
+  async openDoc(entry: DocEntry): Promise<void> {
+    try {
+      const uri = vscode.Uri.file(entry.filePath);
+      await vscode.commands.executeCommand(
+        "vscode.openWith",
+        uri,
+        "vscode.markdown.preview.editor",
+        vscode.ViewColumn.One,
+      );
+    } catch {
+      vscode.window.showErrorMessage(
+        `NoteStack: File not found — ${entry.filePath}`,
+      );
+    }
+  }
+
   dispose(): void {
     this.decorationType?.dispose();
     this.gutterDecorationType?.dispose();
@@ -1845,5 +1888,7 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     this.statusBarItem?.dispose();
     this.codeTagScanner?.dispose();
     this.codeTagBrowserPanel?.dispose();
+    this.docsScanner?.dispose();
+    this.docsBrowserPanel?.dispose();
   }
 }

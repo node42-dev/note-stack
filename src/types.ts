@@ -69,6 +69,18 @@ export interface CodeTagsStore {
   [filePath: string]: CodeTagEntry[];
 }
 
+export interface DocEntry {
+  filePath: string;
+  title: string; // first "# Heading" in the file, else the file name
+  preview: string; // first paragraph of body text, truncated
+  size: number; // bytes
+  mtimeMs: number;
+}
+
+export interface DocsStore {
+  [filePath: string]: DocEntry;
+}
+
 export interface NotesStore {
   [filePath: string]: NoteEntry[];
 }
@@ -83,7 +95,9 @@ export type TreeNode =
   | { kind: "notesRoot" }
   | { kind: "codeTagsRoot" }
   | { kind: "codeTagFile"; filePath: string }
-  | { kind: "codeTag"; entry: CodeTagEntry };
+  | { kind: "codeTag"; entry: CodeTagEntry }
+  | { kind: "docsRoot" }
+  | { kind: "docFile"; entry: DocEntry };
 
 export type AnchorMatch = {
   line: number;

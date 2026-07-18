@@ -8,7 +8,7 @@
 
 import * as path from "path";
 import * as vscode from "vscode";
-import { CodeTagsStore, NoteEntry, TreeNode } from "./types";
+import { CodeTagsStore, DocsStore, NoteEntry, TreeNode } from "./types";
 import {
   escapeMarkdown,
   formatTimestamp,
@@ -66,6 +66,7 @@ export class NotesTreeDataProvider implements vscode.TreeDataProvider<TreeNode> 
   constructor(
     private readonly getNotes: () => { [filePath: string]: NoteEntry[] },
     private readonly getCodeTags: () => CodeTagsStore,
+    private readonly getDocs: () => DocsStore,
   ) {}
 
   refresh(): void {
@@ -103,6 +104,43 @@ export class NotesTreeDataProvider implements vscode.TreeDataProvider<TreeNode> 
         );
         item.contextValue = "codeTagsRoot";
         item.iconPath = new vscode.ThemeIcon("tag");
+        return item;
+      }
+
+      if (element.kind === "docsRoot") {
+        const item = new vscode.TreeItem(
+          "Docs",
+          vscode.TreeItemCollapsibleState.Collapsed,
+        );
+        item.contextValue = "docsRoot";
+        item.iconPath = new vscode.ThemeIcon("book");
+        return item;
+      }
+
+      if (element.kind === "docFile") {
+        const { entry } = element;
+        const relPath = vscode.workspace.asRelativePath(entry.filePath);
+        const item = new vscode.TreeItem(
+          entry.title,
+          vscode.TreeItemCollapsibleState.None,
+        );
+        item.description = relPath;
+        item.contextValue = "docFile";
+        item.iconPath = new vscode.ThemeIcon("markdown");
+        item.command = {
+          command: "noteStack.openDoc",
+          title: "Open Doc",
+          arguments: [entry],
+        };
+
+        const md = new vscode.MarkdownString();
+        md.isTrusted = false;
+        md.appendMarkdown(`**${escapeMarkdown(entry.title)}**`);
+        md.appendMarkdown(`\n\n*${escapeMarkdown(relPath)}*`);
+        if (entry.preview) {
+          md.appendMarkdown(`\n\n${escapeMarkdown(entry.preview)}`);
+        }
+        item.tooltip = md;
         return item;
       }
 
@@ -247,6 +285,9 @@ export class NotesTreeDataProvider implements vscode.TreeDataProvider<TreeNode> 
       const hasCodeTags = Object.values(store).some((arr) => arr.length > 0);
       if (hasCodeTags) roots.push({ kind: "codeTagsRoot" });
 
+      const docs = this.getDocs();
+      if (Object.keys(docs).length > 0) roots.push({ kind: "docsRoot" });
+
       return Promise.resolve(roots);
     }
 
@@ -298,6 +339,19 @@ export class NotesTreeDataProvider implements vscode.TreeDataProvider<TreeNode> 
         });
         return Promise.resolve(
           sorted.map((entry) => ({ kind: "codeTag" as const, entry })),
+        );
+      }
+
+      // ── Docs root ────────────────────────────────────────────────────────────
+      if (element.kind === "docsRoot") {
+        const store = this.getDocs();
+        const sorted = Object.values(store).sort((a, b) =>
+          vscode.workspace
+            .asRelativePath(a.filePath)
+            .localeCompare(vscode.workspace.asRelativePath(b.filePath)),
+        );
+        return Promise.resolve(
+          sorted.map((entry) => ({ kind: "docFile" as const, entry })),
         );
       }
     }
