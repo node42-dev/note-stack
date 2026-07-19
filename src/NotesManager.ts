@@ -1191,7 +1191,7 @@ export class NotesManager implements vscode.Disposable, INotesBrowserManager, IC
     try {
       const maxMb = vscode.workspace
         .getConfiguration("noteStack")
-        .get<number>("maxAiZipSizeMb", 30);
+        .get<number>("maxProjectSizeForZip", 30);
 
       const zipPath = await zipProjectRoot(
         folder.uri.fsPath,

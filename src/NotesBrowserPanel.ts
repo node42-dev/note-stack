@@ -33,8 +33,8 @@ export class NotesBrowserPanel {
   private noteRenderer:  NoteRenderer;
 
   private noteCountThreshold: number;
-  private browserInlineCodePreview: boolean;
-  private browserInlineCodePreviewContextLines: number;
+  private browserCodePreview: boolean;
+  private browserCodePreviewLines: number;
 
   static createOrShow(
     context: vscode.ExtensionContext,
@@ -69,13 +69,13 @@ export class NotesBrowserPanel {
     private readonly context: vscode.ExtensionContext,
     manager: INotesBrowserManager
   ) {
-    this.browserInlineCodePreview = vscode.workspace
+    this.browserCodePreview = vscode.workspace
       .getConfiguration('noteStack')
-      .get<boolean>('browserInlineCodePreview', true);
+      .get<boolean>('browserCodePreview', true);
     
-    this.browserInlineCodePreviewContextLines = vscode.workspace
+    this.browserCodePreviewLines = vscode.workspace
       .getConfiguration('noteStack')
-      .get<number>('browserInlineCodePreviewContextLines', 4);
+      .get<number>('browserCodePreviewLines', 4);
 
     this.noteCountThreshold = vscode.workspace
       .getConfiguration('noteStack')
@@ -127,11 +127,11 @@ export class NotesBrowserPanel {
             vscode.env.openExternal(vscode.Uri.parse(msg.url));
           }
         }
-        else if (msg.type === 'getSnippet' && this.browserInlineCodePreview) {
+        else if (msg.type === 'getSnippet' && this.browserCodePreview) {
           try {
             const doc   = await vscode.workspace.openTextDocument(msg.filePath);
-            const start = Math.max(0, msg.line - this.browserInlineCodePreviewContextLines);
-            const end   = Math.min(doc.lineCount - 1, msg.line + this.browserInlineCodePreviewContextLines);
+            const start = Math.max(0, msg.line - this.browserCodePreviewLines);
+            const end   = Math.min(doc.lineCount - 1, msg.line + this.browserCodePreviewLines);
             const lines = [];
             
             for (let i = start; i <= end; i++) {

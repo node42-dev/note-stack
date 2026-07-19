@@ -28,6 +28,10 @@ const EXCLUDE_DIR_RE =
 const NSIGNORE_FILENAME = ".nsignore";
 const NSIGNORE_WATCH_GLOB = `**/${NSIGNORE_FILENAME}`;
 
+// Boilerplate license files (LICENSE.md, MIT-LICENSE.md, THIRD_PARTY_LICENSES.md, …)
+// aren't documentation — keep them out of the Docs tree.
+const LICENSE_RE = /license/i;
+
 const PREVIEW_MAX_LEN = 220;
 
 export class DocsScanner implements vscode.Disposable {
@@ -57,6 +61,7 @@ export class DocsScanner implements vscode.Disposable {
 
   private isExcluded(fsPath: string): boolean {
     if (EXCLUDE_DIR_RE.test(fsPath)) return true;
+    if (LICENSE_RE.test(path.basename(fsPath, path.extname(fsPath)))) return true;
 
     for (const [root, ig] of this.ignoreFilters) {
       const rel = path.relative(root, fsPath);

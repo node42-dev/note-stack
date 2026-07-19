@@ -23,8 +23,8 @@ export class CodeTagsBrowserPanel {
   private static currentPanel: CodeTagsBrowserPanel | undefined;
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
-  private browserInlineCodePreview: boolean;
-  private browserInlineCodePreviewContextLines: number;
+  private browserCodePreview: boolean;
+  private browserCodePreviewLines: number;
 
   static createOrShow(
     context: vscode.ExtensionContext,
@@ -58,13 +58,13 @@ export class CodeTagsBrowserPanel {
     private readonly context: vscode.ExtensionContext,
     manager: ICodeTagsBrowserManager,
   ) {
-    this.browserInlineCodePreview = vscode.workspace
+    this.browserCodePreview = vscode.workspace
       .getConfiguration('noteStack')
-      .get<boolean>('browserInlineCodePreview', true);
+      .get<boolean>('browserCodePreview', true);
 
-    this.browserInlineCodePreviewContextLines = vscode.workspace
+    this.browserCodePreviewLines = vscode.workspace
       .getConfiguration('noteStack')
-      .get<number>('browserInlineCodePreviewContextLines', 4);
+      .get<number>('browserCodePreviewLines', 4);
 
     this.panel = panel;
     this.update(manager);
@@ -73,11 +73,11 @@ export class CodeTagsBrowserPanel {
     this.panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === 'openCodeTag') {
         await manager.openCodeTag(msg.entry as CodeTagEntry);
-      } else if (msg.type === 'getSnippet' && this.browserInlineCodePreview) {
+      } else if (msg.type === 'getSnippet' && this.browserCodePreview) {
         try {
           const doc   = await vscode.workspace.openTextDocument(msg.filePath);
-          const start = Math.max(0, msg.line - this.browserInlineCodePreviewContextLines);
-          const end   = Math.min(doc.lineCount - 1, msg.line + this.browserInlineCodePreviewContextLines);
+          const start = Math.max(0, msg.line - this.browserCodePreviewLines);
+          const end   = Math.min(doc.lineCount - 1, msg.line + this.browserCodePreviewLines);
           const lines: string[] = [];
           for (let i = start; i <= end; i++) {
             lines.push((i === msg.line ? '▶ ' : '  ') + doc.lineAt(i).text);

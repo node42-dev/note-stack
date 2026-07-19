@@ -20,6 +20,7 @@ yarn-error.log*
 # IDE Specific (VSCode, JetBrains, etc.)
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # test coverage
